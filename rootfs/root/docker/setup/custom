@@ -1,0 +1,50 @@
+#!/usr/bin/env sh
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+##@Version           :  202408041511-git
+# @@Author           :  CasjaysDev
+# @@Contact          :  CasjaysDev <docker-admin@casjaysdev.pro>
+# @@License          :  MIT
+# @@ReadME           :
+# @@Copyright        :  Copyright 2023 CasjaysDev
+# @@Created          :  Mon Aug 28 06:48:42 PM EDT 2023
+# @@File             :  custom
+# @@Description      :  script to run custom
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# shellcheck shell=sh
+# shellcheck disable=SC2016
+# shellcheck disable=SC2031
+# shellcheck disable=SC2120
+# shellcheck disable=SC2155
+# shellcheck disable=SC2199
+# shellcheck disable=SC2317
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set bash options
+[ "$DEBUGGER" = "on" ] && echo "Enabling debugging" && set -ex$DEBUGGER_OPTIONS || set -e
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set env variables
+exitCode=0
+ARCH="$(uname -m | tr '[:upper]' '[:lower]')"
+BIN_PATH="/usr/local/bin/opengist"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Main script
+case "$ARCH" in
+x86_64) ARCH="amd64" ;;
+aarch64) ARCH="arm64" ;;
+*) echo "$ARCH is not supported by this script" && exit 1 ;;
+esac
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+API_URL="$(curl -q -LSsf https://api.github.com/repos/thomiceli/opengist/releases/latest | jq -r '.assets[] | select(.name|match("linux.*tar.gz")) | .browser_download_url' | grep "$ARCH.tar.gz" || false)"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if [ -n "$API_URL" ]; then
+  [ -d "/etc/opengist" ] || mkdir -p "/etc/opengist"
+  echo "Dowloading from $API_URL"
+  curl -q -LSsf "$API_URL" -o "/tmp/opengist.tar.gz" || exit 1
+  tar xzf /tmp/opengist.tar.gz -C "/tmp"
+  [ -f "/tmp/opengist/opengist" ] && mv -f "/tmp/opengist/opengist" "$BIN_PATH" && chmod -Rf 755 "$BIN_PATH" || exitCode=1
+  rm -Rf "/tmp/opengist.tar.gz" "/tmp/opengist"
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set the exit code
+[ -x "$BIN_PATH" ] && echo "opengist installed to: $BIN_PATH" || exitCode=1
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+exit $exitCode
